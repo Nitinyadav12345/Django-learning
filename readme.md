@@ -18,4 +18,16 @@ how to check all the installed packages.
 
 > python manage.py startapp <<Name>>
 
- 
+how to create the default database tables 
+
+> Python manage.py migrate 
+
+how to create a superuser
+
+> python manage.py createsuperuser 
+
+http://127.0.0.1:8000/admin/login/?next=/admin/
+
+how to create the migrations 
+> python manage.py makemigrations
+> python manage.py migrate
