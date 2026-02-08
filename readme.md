@@ -14,3 +14,5 @@ how to check all the installed packages.
 > django-admin startproject django_rest_main .
 > python manage.py runserver
 > python manage.py startapp <<Name>>
+
+testing 
