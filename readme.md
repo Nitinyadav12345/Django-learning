@@ -30,4 +30,5 @@ http://127.0.0.1:8000/admin/login/?next=/admin/
 
 how to create the migrations 
 > python manage.py makemigrations
+
 > python manage.py migrate
