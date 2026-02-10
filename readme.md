@@ -667,3 +667,201 @@ ModelViewSet     → All actions in one class (automatic) 🚀
 
 > 🚀 **ModelViewSet** = `queryset` + `serializer_class` = **Full CRUD in 2 lines!**
 ````
+## 📖 Pagination in Django REST Framework
+
+Pagination is used to **split large datasets** into smaller, manageable chunks. Instead of returning **all records at once**, pagination returns a **limited number of records per page**.
+
+---
+
+### Why Pagination?
+
+```
+Without Pagination:
+GET /employees/ → Returns 10,000 records at once 😰 (Slow & Heavy)
+
+With Pagination:
+GET /employees/?page=1 → Returns 10 records ✅ (Fast & Light)
+GET /employees/?page=2 → Returns next 10 records ✅
+```
+
+---
+
+### 1️⃣ `PageNumberPagination`
+
+Returns results based on a **page number**. You specify which **page** you want to see.
+
+#### URL Format:
+```
+/blogs/?page=1    → Returns first 10 records
+/blogs/?page=2    → Returns next 10 records
+/blogs/?page=10   → Returns records 91-100
+```
+
+#### How It Works:
+
+| Parameter   | Description                              |
+|-------------|------------------------------------------|
+| `page_size` | Number of items to display per page      |
+| `page`      | The page number you want to fetch        |
+
+#### Example:
+
+```
+page_size = 10
+
+Page 1 → Records 1-10
+Page 2 → Records 11-20
+Page 3 → Records 21-30
+...
+Page 10 → Records 91-100
+```
+
+#### Setup:
+
+**Option 1: Global Setting (settings.py)**
+```python
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10
+}
+```
+
+**Option 2: Custom Pagination Class**
+```python
+from rest_framework.pagination import PageNumberPagination
+
+class MyPageNumberPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+```
+
+**Use in View:**
+```python
+from rest_framework import generics
+from .models import Blog
+from .serializers import BlogSerializer
+from .pagination import MyPageNumberPagination
+
+class BlogListView(generics.ListAPIView):
+    queryset = Blog.objects.all()
+    serializer_class = BlogSerializer
+    pagination_class = MyPageNumberPagination
+```
+
+#### Response Format:
+```json
+{
+    "count": 100,
+    "next": "http://127.0.0.1:8000/blogs/?page=2",
+    "previous": null,
+    "results": [
+        { "id": 1, "title": "Blog 1" },
+        { "id": 2, "title": "Blog 2" },
+        { "id": 10, "title": "Blog 10" }
+    ]
+}
+```
+
+---
+
+### 2️⃣ `LimitOffsetPagination`
+
+Returns results based on **limit** and **offset** values. You control **how many items** to fetch and **from where** to start.
+
+#### URL Format:
+```
+/blogs/?limit=10&offset=0     → Returns first 10 records (1-10)
+/blogs/?limit=10&offset=10    → Returns next 10 records (11-20)
+/blogs/?limit=10&offset=20    → Returns next 10 records (21-30)
+/blogs/?limit=5&offset=0      → Returns first 5 records (1-5)
+```
+
+#### How It Works:
+
+| Parameter | Description                                          |
+|-----------|------------------------------------------------------|
+| `limit`   | Controls how many items you want to see in a single page |
+| `offset`  | Tells the API where to start fetching the items from     |
+
+#### Visual Example:
+
+```
+Total Records: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
+?limit=5&offset=0   → [1, 2, 3, 4, 5]        (Start from 0, get 5)
+?limit=5&offset=5   → [6, 7, 8, 9, 10]       (Start from 5, get 5)
+?limit=5&offset=10  → [11, 12, 13, 14, 15]   (Start from 10, get 5)
+?limit=3&offset=0   → [1, 2, 3]              (Start from 0, get 3)
+?limit=3&offset=6   → [7, 8, 9]              (Start from 6, get 3)
+```
+
+#### Setup:
+
+**Option 1: Global Setting (settings.py)**
+```python
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'PAGE_SIZE': 10
+}
+```
+
+**Option 2: Custom Pagination Class**
+```python
+from rest_framework.pagination import LimitOffsetPagination
+
+class MyLimitOffsetPagination(LimitOffsetPagination):
+    default_limit = 10
+    max_limit = 100
+```
+
+**Use in View:**
+```python
+from rest_framework import generics
+from .models import Blog
+from .serializers import BlogSerializer
+from .pagination import MyLimitOffsetPagination
+
+class BlogListView(generics.ListAPIView):
+    queryset = Blog.objects.all()
+    serializer_class = BlogSerializer
+    pagination_class = MyLimitOffsetPagination
+```
+
+#### Response Format:
+```json
+{
+    "count": 100,
+    "next": "http://127.0.0.1:8000/blogs/?limit=10&offset=10",
+    "previous": null,
+    "results": [
+        { "id": 1, "title": "Blog 1" },
+        { "id": 2, "title": "Blog 2" },
+        { "id": 10, "title": "Blog 10" }
+    ]
+}
+```
+
+---
+
+### 🔄 Comparison: PageNumberPagination vs LimitOffsetPagination
+
+| Feature                  | `PageNumberPagination`         | `LimitOffsetPagination`             |
+|--------------------------|--------------------------------|-------------------------------------|
+| URL Format               | `?page=2`                      | `?limit=10&offset=10`              |
+| Control Items Per Page   | Fixed `page_size`              | Dynamic via `limit` parameter       |
+| Control Starting Point   | Automatic (based on page)      | Manual via `offset` parameter       |
+| Flexibility              | Less                           | More ✅                             |
+| Simplicity               | More ✅                        | Less                                |
+| Best For                 | Simple pagination              | Advanced/Custom pagination          |
+
+---
+
+### 🎯 When to Use What?
+
+| Use Case                                         | Best Choice                |
+|--------------------------------------------------|----------------------------|
+| Simple page-by-page navigation                   | `PageNumberPagination` ✅  |
+| Need control over how many items & starting point | `LimitOffsetPagination` ✅ |
+| Frontend like Google Search (Page 1, 2, 3...)    | `PageNumberPagination`     |
+| Frontend like Infinite Scroll / Load More        | `LimitOffsetPagination`    |
