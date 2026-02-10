@@ -865,3 +865,278 @@ class BlogListView(generics.ListAPIView):
 | Need control over how many items & starting point | `LimitOffsetPagination` ✅ |
 | Frontend like Google Search (Page 1, 2, 3...)    | `PageNumberPagination`     |
 | Frontend like Infinite Scroll / Load More        | `LimitOffsetPagination`    |
+
+## 📖 Filtering in Django REST Framework
+
+Filtering allows you to **narrow down** the results returned by an API based on specific **conditions or criteria**. Instead of returning all records, filtering returns only the records that **match your query**.
+
+---
+
+### Why Filtering?
+
+```
+Without Filtering:
+GET /employees/ → Returns ALL 10,000 employees 😰
+
+With Filtering:
+GET /employees/?department=IT → Returns only IT department employees ✅
+GET /employees/?salary=50000 → Returns employees with salary 50000 ✅
+```
+
+---
+
+### Types of Filtering in Django REST Framework
+
+```
+1️⃣ Basic Filtering (Manual)
+2️⃣ DjangoFilterBackend (django-filter)
+3️⃣ SearchFilter
+4️⃣ OrderingFilter
+```
+
+---
+
+### 1️⃣ Basic Filtering (Manual)
+
+You manually override the `get_queryset()` method to filter data based on query parameters.
+
+#### Example:
+
+```python
+from rest_framework import generics
+from .models import Employee
+from .serializers import EmployeeSerializer
+
+class EmployeeListView(generics.ListAPIView):
+    serializer_class = EmployeeSerializer
+
+    def get_queryset(self):
+        queryset = Employee.objects.all()
+
+        # Get query parameters from URL
+        department = self.request.query_params.get('department')
+        salary = self.request.query_params.get('salary')
+
+        # Apply filters if parameters exist
+        if department:
+            queryset = queryset.filter(department=department)
+        if salary:
+            queryset = queryset.filter(salary=salary)
+
+        return queryset
+```
+
+#### URL Usage:
+```
+GET /employees/?department=IT
+GET /employees/?salary=50000
+GET /employees/?department=IT&salary=50000
+```
+
+> ⚠️ This works but requires **manual code** for every filter.
+
+---
+
+### 2️⃣ DjangoFilterBackend (django-filter) ✅ Recommended
+
+A **powerful and automatic** way to add filtering. It uses the `django-filter` package.
+
+#### Installation:
+```bash
+pip install django-filter
+```
+
+#### Add to settings.py:
+```python
+INSTALLED_APPS = [
+    ...
+    'django_filters',
+]
+
+REST_FRAMEWORK = {
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend']
+}
+```
+
+#### Example:
+
+```python
+from rest_framework import generics
+from django_filters.rest_framework import DjangoFilterBackend
+from .models import Employee
+from .serializers import EmployeeSerializer
+
+class EmployeeListView(generics.ListAPIView):
+    queryset = Employee.objects.all()
+    serializer_class = EmployeeSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['department', 'salary', 'city']
+```
+
+#### URL Usage:
+```
+GET /employees/?department=IT
+GET /employees/?salary=50000
+GET /employees/?city=Mumbai
+GET /employees/?department=IT&city=Mumbai
+```
+
+> ✅ **No manual code needed!** Just define `filterset_fields` and it works automatically.
+
+---
+
+### 3️⃣ SearchFilter
+
+Allows you to **search** across one or more fields using a **single search query**. It performs a **partial match** (contains) search.
+
+#### Example:
+
+```python
+from rest_framework import generics
+from rest_framework.filters import SearchFilter
+from .models import Employee
+from .serializers import EmployeeSerializer
+
+class EmployeeListView(generics.ListAPIView):
+    queryset = Employee.objects.all()
+    serializer_class = EmployeeSerializer
+    filter_backends = [SearchFilter]
+    search_fields = ['name', 'department', 'city']
+```
+
+#### URL Usage:
+```
+GET /employees/?search=John
+GET /employees/?search=IT
+GET /employees/?search=Mumbai
+```
+
+#### How Search Works:
+
+```
+search_fields = ['name', 'department', 'city']
+
+GET /employees/?search=John
+
+→ Searches "John" in ALL three fields:
+  - name CONTAINS "John" OR
+  - department CONTAINS "John" OR
+  - city CONTAINS "John"
+```
+
+#### Search Field Prefixes:
+
+| Prefix | Lookup    | Example                  | Description              |
+|--------|-----------|--------------------------|--------------------------|
+| (none) | `icontains` | `search_fields = ['name']`  | Case-insensitive contains |
+| `^`    | `istartswith` | `search_fields = ['^name']` | Starts with              |
+| `=`    | `iexact`    | `search_fields = ['=name']` | Exact match              |
+| `@`    | `search`    | `search_fields = ['@name']` | Full-text search         |
+
+#### Example with Prefixes:
+
+```python
+class EmployeeListView(generics.ListAPIView):
+    queryset = Employee.objects.all()
+    serializer_class = EmployeeSerializer
+    filter_backends = [SearchFilter]
+    search_fields = ['^name', '=department', 'city']
+    # name → starts with
+    # department → exact match
+    # city → contains
+```
+
+---
+
+### 4️⃣ OrderingFilter
+
+Allows you to **sort/order** the results based on specific fields.
+
+#### Example:
+
+```python
+from rest_framework import generics
+from rest_framework.filters import OrderingFilter
+from .models import Employee
+from .serializers import EmployeeSerializer
+
+class EmployeeListView(generics.ListAPIView):
+    queryset = Employee.objects.all()
+    serializer_class = EmployeeSerializer
+    filter_backends = [OrderingFilter]
+    ordering_fields = ['name', 'salary', 'created_at']
+    ordering = ['name']  # Default ordering
+```
+
+#### URL Usage:
+```
+GET /employees/?ordering=name           → A to Z (Ascending)
+GET /employees/?ordering=-name          → Z to A (Descending)
+GET /employees/?ordering=salary         → Lowest salary first
+GET /employees/?ordering=-salary        → Highest salary first
+GET /employees/?ordering=name,salary    → Sort by name, then salary
+```
+
+| URL Parameter          | Result                    |
+|------------------------|---------------------------|
+| `?ordering=name`       | Ascending (A → Z)        |
+| `?ordering=-name`      | Descending (Z → A)       |
+| `?ordering=salary`     | Lowest salary first       |
+| `?ordering=-salary`    | Highest salary first      |
+| `?ordering=name,salary`| Sort by name, then salary |
+
+---
+
+### 🔗 Using Multiple Filters Together
+
+You can combine **all filters** in a single view!
+
+#### Example:
+
+```python
+from rest_framework import generics
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
+from .models import Employee
+from .serializers import EmployeeSerializer
+
+class EmployeeListView(generics.ListAPIView):
+    queryset = Employee.objects.all()
+    serializer_class = EmployeeSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['department', 'city']       # Exact filtering
+    search_fields = ['name', 'department']           # Search
+    ordering_fields = ['name', 'salary']             # Ordering
+    ordering = ['name']                              # Default order
+```
+
+#### URL Usage:
+```
+GET /employees/?department=IT                          → Filter by department
+GET /employees/?search=John                            → Search "John"
+GET /employees/?ordering=-salary                       → Order by salary (high to low)
+GET /employees/?department=IT&search=John&ordering=-salary  → All combined!
+```
+
+---
+
+### 🔄 Comparison: All Filtering Methods
+
+| Filter Type          | Purpose                    | URL Example                      | Automatic? |
+|----------------------|----------------------------|----------------------------------|------------|
+| Basic (Manual)       | Custom filtering           | `?department=IT`                 | ❌ Manual   |
+| `DjangoFilterBackend`| Exact field filtering      | `?department=IT&city=Mumbai`     | ✅ Auto     |
+| `SearchFilter`       | Search across fields       | `?search=John`                   | ✅ Auto     |
+| `OrderingFilter`     | Sort/Order results         | `?ordering=-salary`              | ✅ Auto     |
+
+---
+
+### 🎯 When to Use What?
+
+| Use Case                                      | Best Choice             |
+|-----------------------------------------------|-------------------------|
+| Filter by exact field values                  | `DjangoFilterBackend` ✅ |
+| Search a keyword across multiple fields       | `SearchFilter` ✅        |
+| Sort results by a specific field              | `OrderingFilter` ✅      |
+| Need complex custom filtering logic           | Basic (Manual) Filtering |
+| Need all features together                    | Combine all three! 🚀   |
