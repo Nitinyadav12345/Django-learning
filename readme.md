@@ -40,3 +40,31 @@ get() -> get the students
 post() -> create a student
 put() -> update a student 
 delete() -> delete a student
+
+what are the mixins 
+mixins are reusable code classed in opps that provide specific functionalities 
+In django REST framework , mixins are used to add common functionality to views. 
+
+Create
+read delete update 
+
+five built in mixins in django frame work 
+ListModelMixin  list()
+CreateModelMixin  create()
+RetriewModelMixin  retrieve()
+UpdateModelMixin    update()
+DestroyModelMixin   destroy()
+
+How to use the mixins 
+Inherit the mixins and generics.GenericAPIView in class based views.
+class Employees(mixins , generics.GenericAPIView)
+
+generic.GenericAPIView -> it is fondational class for all the views in django and provide the format for it. 
+
+{
+    get()
+    post()
+    update()
+    delete()
+}
+
