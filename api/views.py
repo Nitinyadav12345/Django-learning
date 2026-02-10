@@ -126,6 +126,7 @@ def studentDetailView(request , pk):
 #     def delete( self , request , pk):
 #         return self.destroy(request, pk)
 
+#generics
 class Employees(generics.ListAPIView , generics.CreateAPIView):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
