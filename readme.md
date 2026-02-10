@@ -32,3 +32,11 @@ how to create the migrations
 > python manage.py makemigrations
 
 > python manage.py migrate
+
+Class Based Views:- 
+class-based views provide more structured and organized way to handle requests using object-oriented principles. 
+
+get() -> get the students 
+post() -> create a student
+put() -> update a student 
+delete() -> delete a student
