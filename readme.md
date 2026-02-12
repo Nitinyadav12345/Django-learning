@@ -1407,3 +1407,370 @@ GET /employees/?department=HR&search=A&ordering=-salary
 ```
 
 > 🚀 **OrderingFilter** makes sorting API results **simple and dynamic** without writing any custom code!
+
+## 📖 Signals in Django
+
+Signals are a way to allow **certain senders to notify a set of receivers** when some **action/event** has occurred. They allow **decoupled applications** to get notified when certain events happen elsewhere in the framework.
+
+In simple words, Signals let you **execute some code automatically** when a specific **event happens** (like saving, deleting, or creating an object).
+
+---
+
+### Why Signals?
+
+```
+Without Signals:
+- You have to manually write code everywhere to handle events
+- Code becomes tightly coupled and repetitive 😰
+
+With Signals:
+- Code runs AUTOMATICALLY when an event occurs ✅
+- Clean, decoupled, and reusable code 🚀
+```
+
+---
+
+### 🎯 Real-Life Examples
+
+```
+✅ Send a welcome email when a new user registers
+✅ Create a user profile automatically when a user is created
+✅ Log activity when a record is updated or deleted
+✅ Update inventory when an order is placed
+✅ Send notification when a new blog post is published
+```
+
+---
+
+### 📋 Built-in Signals in Django
+
+#### 1️⃣ Model Signals
+
+| Signal              | When It Fires                                    |
+|---------------------|--------------------------------------------------|
+| `pre_save`          | **Before** a model's `save()` method is called   |
+| `post_save`         | **After** a model's `save()` method is called    |
+| `pre_delete`        | **Before** a model's `delete()` method is called |
+| `post_delete`       | **After** a model's `delete()` method is called  |
+| `m2m_changed`       | When a **ManyToMany** field is changed           |
+
+#### 2️⃣ Request Signals
+
+| Signal              | When It Fires                                    |
+|---------------------|--------------------------------------------------|
+| `request_started`   | When Django **starts** processing a request      |
+| `request_finished`  | When Django **finishes** processing a request    |
+
+---
+
+### 🏗️ How Signals Work
+
+```
+EVENT HAPPENS → SIGNAL SENT → RECEIVER FUNCTION EXECUTES
+
+Example:
+User Created → post_save signal sent → Create Profile automatically
+```
+
+```
+┌──────────────┐     Signal      ┌──────────────────┐
+│  User Model  │ ──────────────→ │  Receiver Function │
+│  (Sender)    │   post_save     │  (Create Profile)  │
+└──────────────┘                 └──────────────────────┘
+```
+
+---
+
+### 🛠️ How to Use Signals
+
+#### Step 1: Create a `signals.py` File in Your App
+
+```
+myapp/
+├── __init__.py
+├── models.py
+├── views.py
+├── serializers.py
+├── signals.py          ← Create this file
+├── apps.py
+└── urls.py
+```
+
+---
+
+### 📌 Example 1: `post_save` - Auto Create Profile When User is Created
+
+#### models.py
+```python
+from django.db import models
+from django.contrib.auth.models import User
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    bio = models.TextField(blank=True)
+    phone = models.CharField(max_length=15, blank=True)
+    
+    def __str__(self):
+        return f"{self.user.username}'s Profile"
+```
+
+#### signals.py
+```python
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.contrib.auth.models import User
+from .models import Profile
+
+@receiver(post_save, sender=User)
+def create_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+        print(f"Profile created for {instance.username}")
+
+@receiver(post_save, sender=User)
+def save_profile(sender, instance, **kwargs):
+    instance.profile.save()
+    print(f"Profile saved for {instance.username}")
+```
+
+#### What Each Parameter Means:
+
+| Parameter   | Description                                          |
+|-------------|------------------------------------------------------|
+| `sender`    | The **model class** that sent the signal (e.g., User)|
+| `instance`  | The **actual object** that was saved                 |
+| `created`   | **Boolean** - `True` if new record, `False` if update|
+| `**kwargs`  | Additional keyword arguments                         |
+
+#### apps.py (Register the Signal)
+```python
+from django.apps import AppConfig
+
+class MyappConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'myapp'
+
+    def ready(self):
+        import myapp.signals  # Register signals
+```
+
+#### What Happens:
+```
+1. New User Created
+   ↓
+2. post_save Signal Fires
+   ↓
+3. create_profile() Function Runs Automatically
+   ↓
+4. Profile Created for that User ✅
+```
+
+---
+
+### 📌 Example 2: `pre_save` - Modify Data Before Saving
+
+```python
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+from .models import Employee
+
+@receiver(pre_save, sender=Employee)
+def capitalize_name(sender, instance, **kwargs):
+    instance.name = instance.name.upper()
+    print(f"Name capitalized: {instance.name}")
+```
+
+#### What Happens:
+```
+1. Employee.save() called with name = "john"
+   ↓
+2. pre_save Signal Fires BEFORE saving
+   ↓
+3. capitalize_name() converts "john" → "JOHN"
+   ↓
+4. Employee saved with name = "JOHN" ✅
+```
+
+---
+
+### 📌 Example 3: `post_delete` - Log When Record is Deleted
+
+```python
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+from .models import Employee
+
+@receiver(post_delete, sender=Employee)
+def log_deletion(sender, instance, **kwargs):
+    print(f"Employee '{instance.name}' has been deleted!")
+```
+
+#### What Happens:
+```
+1. Employee.delete() called
+   ↓
+2. Employee record deleted from database
+   ↓
+3. post_delete Signal Fires AFTER deletion
+   ↓
+4. log_deletion() logs the deletion ✅
+```
+
+---
+
+### 📌 Example 4: `pre_delete` - Prevent Deletion or Cleanup
+
+```python
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
+from .models import Employee
+
+@receiver(pre_delete, sender=Employee)
+def cleanup_before_delete(sender, instance, **kwargs):
+    if instance.profile_picture:
+        instance.profile_picture.delete()
+    print(f"Cleaned up files for {instance.name} before deletion")
+```
+
+---
+
+### 📌 Example 5: Send Welcome Email on User Registration
+
+```python
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.core.mail import send_mail
+from django.contrib.auth.models import User
+
+@receiver(post_save, sender=User)
+def send_welcome_email(sender, instance, created, **kwargs):
+    if created:
+        send_mail(
+            subject='Welcome to Our Platform!',
+            message=f'Hi {instance.username}, welcome to our platform!',
+            from_email='admin@example.com',
+            recipient_list=[instance.email],
+        )
+        print(f"Welcome email sent to {instance.email}")
+```
+
+---
+
+### 📋 Two Ways to Connect Signals
+
+#### Method 1: Using `@receiver` Decorator ✅ (Recommended)
+
+```python
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from .models import Employee
+
+@receiver(post_save, sender=Employee)
+def my_function(sender, instance, created, **kwargs):
+    if created:
+        print("New employee created!")
+```
+
+#### Method 2: Using `connect()` Method
+
+```python
+from django.db.models.signals import post_save
+from .models import Employee
+
+def my_function(sender, instance, created, **kwargs):
+    if created:
+        print("New employee created!")
+
+post_save.connect(my_function, sender=Employee)
+```
+
+---
+
+### ⚠️ Important: Register Signals in `apps.py`
+
+Always import your signals in the `ready()` method of `apps.py`:
+
+```python
+from django.apps import AppConfig
+
+class MyappConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'myapp'
+
+    def ready(self):
+        import myapp.signals  # ← This line is IMPORTANT!
+```
+
+> ⚠️ Without this, **signals won't work!**
+
+---
+
+### 🔄 Signal Flow Diagram
+
+```
+pre_save Signal
+   ↓
+┌─────────────────────┐
+│  Data Modified       │
+│  Before Saving       │
+└─────────────────────┘
+   ↓
+   DATABASE SAVE
+   ↓
+post_save Signal
+   ↓
+┌─────────────────────┐
+│  After Save Actions  │
+│  (Create Profile,    │
+│   Send Email, etc.)  │
+└─────────────────────┘
+```
+
+```
+pre_delete Signal
+   ↓
+┌─────────────────────┐
+│  Cleanup Before      │
+│  Deletion            │
+└─────────────────────┘
+   ↓
+   DATABASE DELETE
+   ↓
+post_delete Signal
+   ↓
+┌─────────────────────┐
+│  After Delete Actions│
+│  (Log, Notify, etc.) │
+└─────────────────────┘
+```
+
+---
+
+### 🔄 Quick Comparison
+
+| Signal         | When                  | Use Case                              |
+|----------------|-----------------------|---------------------------------------|
+| `pre_save`     | Before saving         | Modify data, validate, capitalize     |
+| `post_save`    | After saving          | Create profile, send email, notify    |
+| `pre_delete`   | Before deleting       | Cleanup files, prevent deletion       |
+| `post_delete`  | After deleting        | Log deletion, notify admin            |
+
+---
+
+### 💡 Summary
+
+```
+Signals = Automatic Event Listeners in Django
+
+pre_save    → Runs BEFORE saving to database
+post_save   → Runs AFTER saving to database
+pre_delete  → Runs BEFORE deleting from database
+post_delete → Runs AFTER deleting from database
+
+Key Steps:
+1. Create signals.py in your app
+2. Write receiver functions with @receiver decorator
+3. Register signals in apps.py → ready() method
+```
+
+> 🚀 **Signals** make your code **clean, decoupled, and automatic!**
