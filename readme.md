@@ -1140,3 +1140,270 @@ GET /employees/?department=IT&search=John&ordering=-salary  → All combined!
 | Sort results by a specific field              | `OrderingFilter` ✅      |
 | Need complex custom filtering logic           | Basic (Manual) Filtering |
 | Need all features together                    | Combine all three! 🚀   |
+
+## 📖 Ordering Filter in Django REST Framework
+
+Ordering Filter allows you to **sort/order** the API results based on specific fields. Users can control the **sort order** (ascending or descending) directly from the **URL query parameters**.
+
+---
+
+### Why Ordering?
+
+```
+Without Ordering:
+GET /employees/ → Returns records in random/default order 😰
+
+With Ordering:
+GET /employees/?ordering=name      → Returns records sorted A to Z ✅
+GET /employees/?ordering=-salary   → Returns records sorted highest salary first ✅
+```
+
+---
+
+### 🛠️ Setup
+
+#### Step 1: Import OrderingFilter
+
+```python
+from rest_framework.filters import OrderingFilter
+```
+
+#### Step 2: Add to Your View
+
+```python
+from rest_framework import generics
+from rest_framework.filters import OrderingFilter
+from .models import Employee
+from .serializers import EmployeeSerializer
+
+class EmployeeListView(generics.ListAPIView):
+    queryset = Employee.objects.all()
+    serializer_class = EmployeeSerializer
+    filter_backends = [OrderingFilter]
+    ordering_fields = ['name', 'salary', 'department', 'created_at']
+    ordering = ['name']  # Default ordering
+```
+
+| Property           | Description                                              |
+|--------------------|----------------------------------------------------------|
+| `filter_backends`  | List of filter backends to use                           |
+| `ordering_fields`  | Fields that users are **allowed** to order by            |
+| `ordering`         | **Default** ordering when no ordering parameter is passed |
+
+---
+
+### 📋 URL Usage & Examples
+
+#### Sample Data:
+
+| ID | Name     | Salary | Department | Created_at |
+|----|----------|--------|------------|------------|
+| 1  | John     | 50000  | IT         | 2024-01-01 |
+| 2  | Alice    | 70000  | HR         | 2024-03-15 |
+| 3  | Zara     | 30000  | IT         | 2024-02-10 |
+| 4  | Bob      | 60000  | Finance    | 2024-04-20 |
+| 5  | Charlie  | 45000  | HR         | 2024-05-05 |
+
+---
+
+### 1️⃣ Ascending Order (Default)
+
+```
+GET /employees/?ordering=name
+```
+
+**Result:** Sorted by name A → Z
+
+| ID | Name     | Salary | Department |
+|----|----------|--------|------------|
+| 2  | Alice    | 70000  | HR         |
+| 4  | Bob      | 60000  | Finance    |
+| 5  | Charlie  | 45000  | HR         |
+| 1  | John     | 50000  | IT         |
+| 3  | Zara     | 30000  | IT         |
+
+---
+
+### 2️⃣ Descending Order (Using `-` prefix)
+
+```
+GET /employees/?ordering=-name
+```
+
+**Result:** Sorted by name Z → A
+
+| ID | Name     | Salary | Department |
+|----|----------|--------|------------|
+| 3  | Zara     | 30000  | IT         |
+| 1  | John     | 50000  | IT         |
+| 5  | Charlie  | 45000  | HR         |
+| 4  | Bob      | 60000  | Finance    |
+| 2  | Alice    | 70000  | HR         |
+
+---
+
+### 3️⃣ Order by Salary (Ascending)
+
+```
+GET /employees/?ordering=salary
+```
+
+**Result:** Lowest salary first
+
+| ID | Name     | Salary | Department |
+|----|----------|--------|------------|
+| 3  | Zara     | 30000  | IT         |
+| 5  | Charlie  | 45000  | HR         |
+| 1  | John     | 50000  | IT         |
+| 4  | Bob      | 60000  | Finance    |
+| 2  | Alice    | 70000  | HR         |
+
+---
+
+### 4️⃣ Order by Salary (Descending)
+
+```
+GET /employees/?ordering=-salary
+```
+
+**Result:** Highest salary first
+
+| ID | Name     | Salary | Department |
+|----|----------|--------|------------|
+| 2  | Alice    | 70000  | HR         |
+| 4  | Bob      | 60000  | Finance    |
+| 1  | John     | 50000  | IT         |
+| 5  | Charlie  | 45000  | HR         |
+| 3  | Zara     | 30000  | IT         |
+
+---
+
+### 5️⃣ Multiple Field Ordering
+
+```
+GET /employees/?ordering=department,salary
+```
+
+**Result:** First sort by department (A→Z), then by salary (low→high) within each department
+
+| ID | Name     | Salary | Department |
+|----|----------|--------|------------|
+| 4  | Bob      | 60000  | Finance    |
+| 5  | Charlie  | 45000  | HR         |
+| 2  | Alice    | 70000  | HR         |
+| 3  | Zara     | 30000  | IT         |
+| 1  | John     | 50000  | IT         |
+
+---
+
+### 6️⃣ Multiple Field Ordering (Mixed Ascending & Descending)
+
+```
+GET /employees/?ordering=department,-salary
+```
+
+**Result:** Sort by department (A→Z), then by salary (high→low) within each department
+
+| ID | Name     | Salary | Department |
+|----|----------|--------|------------|
+| 4  | Bob      | 60000  | Finance    |
+| 2  | Alice    | 70000  | HR         |
+| 5  | Charlie  | 45000  | HR         |
+| 1  | John     | 50000  | IT         |
+| 3  | Zara     | 30000  | IT         |
+
+---
+
+### 📌 Quick Reference
+
+| URL Parameter              | Result                              |
+|----------------------------|-------------------------------------|
+| `?ordering=name`           | A → Z (Ascending)                  |
+| `?ordering=-name`          | Z → A (Descending)                 |
+| `?ordering=salary`         | Lowest first (Ascending)           |
+| `?ordering=-salary`        | Highest first (Descending)         |
+| `?ordering=created_at`     | Oldest first (Ascending)           |
+| `?ordering=-created_at`    | Newest first (Descending)          |
+| `?ordering=department,name`| Sort by department, then by name   |
+| `?ordering=department,-salary` | Sort by department, then salary desc |
+
+---
+
+### ⚙️ Configuration Options
+
+#### Allow All Fields for Ordering:
+
+```python
+class EmployeeListView(generics.ListAPIView):
+    queryset = Employee.objects.all()
+    serializer_class = EmployeeSerializer
+    filter_backends = [OrderingFilter]
+    ordering_fields = '__all__'  # Allow ordering by any field
+    ordering = ['name']
+```
+
+#### Set Default Ordering:
+
+```python
+class EmployeeListView(generics.ListAPIView):
+    queryset = Employee.objects.all()
+    serializer_class = EmployeeSerializer
+    filter_backends = [OrderingFilter]
+    ordering_fields = ['name', 'salary']
+    ordering = ['-created_at']  # Default: newest first
+```
+
+#### Global Setting (settings.py):
+
+```python
+REST_FRAMEWORK = {
+    'DEFAULT_FILTER_BACKENDS': ['rest_framework.filters.OrderingFilter'],
+    'ORDERING_PARAM': 'ordering',  # Default query parameter name
+}
+```
+
+---
+
+### 🔗 Combining with Other Filters
+
+```python
+from rest_framework import generics
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
+from .models import Employee
+from .serializers import EmployeeSerializer
+
+class EmployeeListView(generics.ListAPIView):
+    queryset = Employee.objects.all()
+    serializer_class = EmployeeSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['department', 'city']
+    search_fields = ['name', 'department']
+    ordering_fields = ['name', 'salary', 'created_at']
+    ordering = ['name']
+```
+
+#### Combined URL Usage:
+```
+GET /employees/?department=IT&ordering=-salary
+→ Filter IT department + Sort by highest salary
+
+GET /employees/?search=John&ordering=name
+→ Search "John" + Sort by name A to Z
+
+GET /employees/?department=HR&search=A&ordering=-salary
+→ Filter HR + Search "A" + Sort by highest salary
+```
+
+---
+
+### 💡 Summary
+
+```
+?ordering=field_name     → Ascending Order (A→Z, 0→9, Old→New)
+?ordering=-field_name    → Descending Order (Z→A, 9→0, New→Old)
+?ordering=field1,field2  → Multiple Field Ordering
+?ordering=field1,-field2 → Mixed Ordering
+```
+
+> 🚀 **OrderingFilter** makes sorting API results **simple and dynamic** without writing any custom code!
